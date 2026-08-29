@@ -71,7 +71,10 @@ def read_root():
             </select>
 
             <label for="amount">Сумма операции (тенге ₸):</label>
-            <input type="number" id="amount" placeholder="Введите сумму" value="150000">
+            <div style="display: flex; gap: 8px;">
+    <input type="number" id="amount" placeholder="Введите сумму" value="150000" style="flex-grow: 1;">
+    <button type="button" id="micBtn" onclick="startDictation()" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">🎤</button>
+</div>
 
             <button class="btn-calc" onclick="calculate()">Сформировать проводки</button>
 
@@ -169,7 +172,30 @@ def read_root():
                     document.getElementById('status-badge').innerText = 'Подписка активна';
                     document.getElementById('status-badge').style.background = '#27ae60';
                 }}
-            }}
+            }}function startDictation() {
+            const micBtn = document.getElementById('micBtn');
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                alert("Браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            micBtn.innerText = '🔴';
+
+            recognition.onresult = function(event) {
+                let transcript = event.results[0][0].transcript;
+                let numbersOnly = transcript.replace(/\D/g, '');
+                if (numbersOnly) document.getElementById('amount').value = numbersOnly;
+                micBtn.innerText = '🎤';
+            };
+
+            recognition.onerror = function() { micBtn.innerText = '🎤'; };
+            recognition.onend = function() { micBtn.innerText = '🎤'; };
+            recognition.start();
+        }
         </script>
     </body>
     </html>
