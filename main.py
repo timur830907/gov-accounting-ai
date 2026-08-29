@@ -6,7 +6,7 @@ import billing
 
 app = FastAPI(title="Gov Accounting AI")
 
-# Инициализируем ваш класс счетов
+# Инициализируем класс счетов
 AI_engine = accounting_ai.RKStateGovAccountingAI()
 
 # Инициализируем менеджер биллинга
@@ -19,7 +19,6 @@ class AccountProcessRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
-    # Получаем словарь счетов
     chart = getattr(AI_engine, "chart_of_accounts", {})
     
     options_html = "".join([
@@ -52,6 +51,52 @@ def read_root():
         recognition.onend = function() { micBtn.innerText = '🎤'; };
         recognition.start();
     }
+
+    async function calculate() {
+        const code = document.getElementById('account_select').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const resultDiv = document.getElementById('result');
+
+        if (!amount || amount <= 0) {
+            alert('Пожалуйста, введите корректную сумму');
+            return;
+        }
+
+        resultDiv.innerHTML = '<p>Загрузка и расчет проводок...</p>';
+
+        try {
+            const response = await fetch('/process-account/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, amount: amount, user_id: 'default_user' })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                resultDiv.innerHTML = `<div style="color: red; margin-top: 15px;">Ошибка: ${err.detail || 'Не удалось выполнить расчет'}</div>`;
+                return;
+            }
+
+            const data = await response.json();
+            
+            let html = '<h3 style="margin-top:20px;">Результат расчета:</h3>';
+            html += `<p><strong>Наименование:</strong> ${data.name || ''}</p>`;
+
+            if (data.entries && data.entries.length > 0) {
+                html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание</th></tr></thead><tbody>';
+                data.entries.forEach(e => {
+                    html += `<tr><td>${e.dt || ''}</td><td>${e.kt || ''}</td><td>${e.amount || ''}</td><td>${e.description || ''}</td></tr>`;
+                });
+                html += '</tbody></table>';
+            } else {
+                html += '<pre style="background:#eef; padding:10px; border-radius:6px;">' + JSON.stringify(data, null, 2) + '</pre>';
+            }
+
+            resultDiv.innerHTML = html;
+        } catch (err) {
+            resultDiv.innerHTML = '<div style="color: red; margin-top: 15px;">Ошибка соединения с сервером.</div>';
+        }
+    }
     """
 
     html_template = """
@@ -59,8 +104,7 @@ def read_root():
     <html lang="ru">
     <head>
         <meta charset="UTF-8">
-        <title>Калькулятор проводок ГУ РК (Подписка Kaspi QR)</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+        <title>Калькулятор проводок ГУ РК</title>
         <style>
             body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
             label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
@@ -87,6 +131,8 @@ def read_root():
         </div>
 
         <button class="btn btn-calc" onclick="calculate()">Сформировать проводки</button>
+
+        <div id="result"></div>
 
         <script>
         __JS_CODE__
