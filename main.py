@@ -1,19 +1,19 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+import accounting_ai
+import billing
 
-from accounting_ai import RKStateGovAccountingAI
-from billing import BillingManager
+app = FastAPI(title="Gov Accounting AI")
 
-app = FastAPI(title="Gov Accounting AI с Kaspi QR Подпиской")
-ai_engine = RKStateGovAccountingAI()
+AI_engine = accounting_ai.AccountingAI()
+BillingManager = billing.BillingManager()
 
 class AccountProcessRequest(BaseModel):
     code: str
     amount: float
     user_id: str = "default_user"
 
-@app.get("/", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     options_html = "".join([
@@ -91,15 +91,14 @@ def read_root():
 
     final_html = html_template.replace("__OPTIONS__", options_html).replace("__JS_CODE__", js_code)
     return HTMLResponse(content=final_html)
-    
 
 @app.post("/process-account/")
 def process_account(req: AccountProcessRequest):
     if not BillingManager.is_subscription_active(req.user_id):
         raise HTTPException(status_code=402, detail="Необходима подписка через Kaspi QR")
-    return ai_engine.process_account_code(req.code, req.amount)
+    return AI_engine.process_account_code(req.code, req.amount)
 
-@app.get("/get-pay-qr/{user_id}")
+@app.get("/get_pay_qr/{user_id}")
 def get_pay_qr(user_id: str):
     return BillingManager.create_kaspi_payment_link(user_id)
 
