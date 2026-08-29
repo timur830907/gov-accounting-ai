@@ -33,7 +33,7 @@ def read_root():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Калькулятор проводок ГУ РК</title>
-        <!-- Подключение библиотеки XLSX для экспорта таблицы в Excel -->
+        <!-- Подключение библиотеки XLSX для экспорта в Excel -->
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 93vh; }}
@@ -42,8 +42,9 @@ def read_root():
             select, input {{ width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }}
             .btn {{ padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; margin-top: 10px; }}
             .btn-calc {{ background-color: #27ae60; color: white; width: 100%; }}
-            .btn-excel {{ background-color: #1e7e34; color: white; margin-top: 15px; display: none; }}
-            .btn-kaspi {{ background-color: #f14635; color: white; width: 100%; }}
+            .btn-excel {{ background-color: #1e7e34; color: white; display: none; margin-right: 10px; }}
+            .btn-pay-modal {{ background-color: #f14635; color: white; }}
+            .btn-kaspi {{ background-color: #f14635; color: white; width: 100%; font-size: 18px; padding: 14px; margin-top: 15px; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }}
             th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
             th {{ background-color: #eef4f0; }}
@@ -51,11 +52,12 @@ def read_root():
             footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #777; padding: 15px 0 5px 0; border-top: 1px solid #e0e0e0; }}
             
             /* Modal Styles */
-            .modal {{ display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }}
-            .modal-content {{ background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }}
-            .close-btn {{ float: right; font-size: 22px; cursor: pointer; color: #aaa; font-weight: bold; }}
-            .qr-container {{ background: #fff; padding: 15px; border: 2px dashed #f14635; border-radius: 8px; margin: 15px 0; display: inline-block; }}
-            .qr-container img {{ width: 200px; height: 200px; display: block; margin: 0 auto; }}
+            .modal {{ display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }}
+            .modal-content {{ background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 12px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: relative; }}
+            .close-btn {{ position: absolute; right: 15px; top: 10px; font-size: 28px; cursor: pointer; color: #aaa; font-weight: bold; }}
+            .close-btn:hover {{ color: #000; }}
+            .qr-container {{ background: #fff; padding: 15px; border: 2px dashed #f14635; border-radius: 10px; margin: 15px 0; display: inline-block; }}
+            .qr-container img {{ width: 220px; height: 220px; display: block; margin: 0 auto; }}
         </style>
     </head>
     <body>
@@ -76,16 +78,20 @@ def read_root():
             <button type="button" class="btn btn-calc" onclick="calculate()">Сформировать проводки</button>
 
             <div id="result">Здесь появится результат расчета</div>
-            <button id="excelBtn" class="btn btn-excel" onclick="exportToExcel()">📥 Скачать проводки в Excel (.xlsx)</button>
+            
+            <div style="margin-top: 15px;">
+                <button id="excelBtn" class="btn btn-excel" onclick="exportToExcel()">📥 Скачать проводки в Excel (.xlsx)</button>
+                <button class="btn btn-pay-modal" onclick="showKaspiQR()">💳 Оформить подписку на 1 месяц (1$ / 500 ₸)</button>
+            </div>
         </div>
 
         <!-- Модальное окно подписки Kaspi QR -->
         <div id="kaspiModal" class="modal">
             <div class="modal-content">
                 <span class="close-btn" onclick="closeKaspiModal()">&times;</span>
-                <h3 style="color: #f14635; margin-top:0;">Подписка на 1 месяц</h3>
-                <p style="font-size: 18px; font-weight: bold; margin: 10px 0; color: #2c3e50;">Стоимость: 1$ (~500 ₸)</p>
-                <p style="font-size: 14px; color: #666;">Отсканируйте QR-код через приложение Kaspi.kz для активации доступа на 30 дней:</p>
+                <h3 style="color: #f14635; margin-top:5px;">Подписка на 1 месяц</h3>
+                <p style="font-size: 20px; font-weight: bold; margin: 10px 0; color: #2c3e50;">Стоимость: 1$ (~500 ₸)</p>
+                <p style="font-size: 13px; color: #666;">Отсканируйте QR-код в приложении <b>Kaspi.kz</b> для активации доступа на 30 дней:</p>
                 
                 <div class="qr-container">
                     <div id="qrImageArea"></div>
@@ -101,7 +107,6 @@ def read_root():
 
         <script>
         let currentPayUrl = '';
-        let currentEntriesData = [];
 
         function startDictation() {{
             const micBtn = document.getElementById('micBtn');
@@ -135,14 +140,15 @@ def read_root():
                 currentPayUrl = data.url || 'https://kaspi.kz';
                 
                 const qrImageArea = document.getElementById('qrImageArea');
-                // Генерация QR-кода на основе ссылки Kaspi Pay
-                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${{encodeURIComponent(currentPayUrl)}}`;
                 
-                qrImageArea.innerHTML = `<img src="${{qrApiUrl}}" alt="Kaspi QR Code"><br><a href="${{currentPayUrl}}" target="_blank" style="color:#f14635; font-weight:bold; font-size:14px; display:inline-block; margin-top:8px;">Открыть прямую ссылку</a>`;
+                // Генерация изображения QR-кода
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${{encodeURIComponent(currentPayUrl)}}`;
+                
+                qrImageArea.innerHTML = `<img src="${{qrApiUrl}}" alt="Kaspi QR Code"><br><a href="${{currentPayUrl}}" target="_blank" style="color:#f14635; font-weight:bold; font-size:14px; display:inline-block; margin-top:8px;">Перейти к оплате Kaspi</a>`;
                 
                 document.getElementById('kaspiModal').style.display = 'block';
             }} catch (e) {{
-                alert('Не удалось получить QR-код для оплаты.');
+                alert('Не удалось сформировать QR-код для оплаты.');
             }}
         }}
 
@@ -166,7 +172,6 @@ def read_root():
             const excelBtn = document.getElementById('excelBtn');
 
             excelBtn.style.display = 'none';
-            currentEntriesData = [];
 
             if (!amount || amount <= 0) {{
                 alert('Пожалуйста, введите корректную сумму');
@@ -183,7 +188,7 @@ def read_root():
                 }});
 
                 if (response.status === 402) {{
-                    resultDiv.innerHTML = `<div style="color: #f14635; padding: 10px;"><strong>Необходима подписка!</strong> Стоимость доступа: 1$ (~500 ₸) в месяц.</div>`;
+                    resultDiv.innerHTML = `<div style="color: #f14635; padding: 10px;"><strong>Доступ ограничен!</strong> Для проведения расчетов необходима подписка на 1 месяц (1$ / 500 ₸).</div>`;
                     showKaspiQR();
                     return;
                 }}
@@ -203,7 +208,6 @@ def read_root():
                 const generalDesc = data.operation || data.description || data.op_name || '';
 
                 if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {{
-                    currentEntriesData = data.entries;
                     html += '<table id="entriesTable"><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание хозяйственной операции</th></tr></thead><tbody>';
                     data.entries.forEach(e => {{
                         let desc = e.description || e.desc || e.op || e.operation || e.title || e.comment || e.details || generalDesc || '-';
@@ -224,7 +228,6 @@ def read_root():
             }}
         }}
 
-        // Функция экспорта результатов в Excel (.xlsx)
         function exportToExcel() {{
             const table = document.getElementById('entriesTable');
             if (!table) {{
