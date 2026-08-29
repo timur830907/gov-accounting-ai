@@ -72,7 +72,7 @@ def read_root():
 
             <label for="amount">Сумма операции (тенге ₸):</label>
             <div style="display: flex; gap: 8px;">
-    <input type="number" id="amount" placeholder="Введите сумму" value="150000" style="flex-grow: 1;">
+    <input type="number" id="amount" placeholder="Введите сумму" style="flex-grow: 1;">
     <button type="button" id="micBtn" onclick="startDictation()" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">🎤</button>
 </div>
 
