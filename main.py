@@ -42,7 +42,7 @@ def read_root():
             select, input {{ width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }}
             .btn {{ padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; margin-top: 10px; }}
             .btn-calc {{ background-color: #27ae60; color: white; width: 100%; }}
-            .btn-excel {{ background-color: #1e7e34; color: white; display: none; margin-right: 10px; }}
+            .btn-excel {{ background-color: #1e7e34; color: white; margin-right: 10px; }}
             .btn-pay-modal {{ background-color: #f14635; color: white; }}
             .btn-kaspi {{ background-color: #f14635; color: white; width: 100%; font-size: 18px; padding: 14px; margin-top: 15px; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }}
@@ -79,7 +79,7 @@ def read_root():
 
             <div id="result">Здесь появится результат расчета</div>
             
-            <div style="margin-top: 15px;">
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button id="excelBtn" class="btn btn-excel" onclick="exportToExcel()">📥 Скачать проводки в Excel (.xlsx)</button>
                 <button class="btn btn-pay-modal" onclick="showKaspiQR()">💳 Оформить подписку на 1 месяц (1$ / 500 ₸)</button>
             </div>
@@ -140,8 +140,6 @@ def read_root():
                 currentPayUrl = data.url || 'https://kaspi.kz';
                 
                 const qrImageArea = document.getElementById('qrImageArea');
-                
-                // Генерация изображения QR-кода
                 const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${{encodeURIComponent(currentPayUrl)}}`;
                 
                 qrImageArea.innerHTML = `<img src="${{qrApiUrl}}" alt="Kaspi QR Code"><br><a href="${{currentPayUrl}}" target="_blank" style="color:#f14635; font-weight:bold; font-size:14px; display:inline-block; margin-top:8px;">Перейти к оплате Kaspi</a>`;
@@ -169,9 +167,6 @@ def read_root():
             const amountInput = document.getElementById('amount').value;
             const amount = parseFloat(amountInput);
             const resultDiv = document.getElementById('result');
-            const excelBtn = document.getElementById('excelBtn');
-
-            excelBtn.style.display = 'none';
 
             if (!amount || amount <= 0) {{
                 alert('Пожалуйста, введите корректную сумму');
@@ -217,7 +212,6 @@ def read_root():
                         html += `<tr><td>${{dt}}</td><td>${{kt}}</td><td>${{entryAmount}}</td><td>${{desc}}</td></tr>`;
                     }});
                     html += '</tbody></table>';
-                    excelBtn.style.display = 'inline-block';
                 }} else {{
                     html += '<pre style="background:#f0f0f0; padding:10px; border-radius:6px; overflow-x:auto;">' + JSON.stringify(data, null, 2) + '</pre>';
                 }}
@@ -231,7 +225,7 @@ def read_root():
         function exportToExcel() {{
             const table = document.getElementById('entriesTable');
             if (!table) {{
-                alert('Нет данных для выгрузки в Excel');
+                alert('Сначала сформируйте проводки, чтобы выгрузить их в Excel!');
                 return;
             }}
             
