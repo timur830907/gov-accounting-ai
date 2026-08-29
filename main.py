@@ -6,8 +6,13 @@ import billing
 
 app = FastAPI(title="Gov Accounting AI")
 
-AI_engine = accounting_ai.AccountingAI()
-BillingManager = billing.BillingManager()
+# Пробуем инициализировать класс или использовать сам модуль
+if hasattr(accounting_ai, "AccountingAI"):
+    AI_engine = accounting_ai.AccountingAI()
+else:
+    AI_engine = accounting_ai
+
+BillingManager = billing.BillingManager() if hasattr(billing, "BillingManager") else billing
 
 class AccountProcessRequest(BaseModel):
     code: str
@@ -16,9 +21,14 @@ class AccountProcessRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
+    # Безопасное получение плана счетов
+    chart = getattr(AI_engine, "chart_of_accounts", {})
+    if callable(chart):
+        chart = chart()
+
     options_html = "".join([
         f'<option value="{code}">{code} - {name}</option>'
-        for code, name in AI_engine.chart_of_accounts.items()
+        for code, name in chart.items()
     ])
 
     js_code = """
@@ -94,17 +104,27 @@ def read_root():
 
 @app.post("/process-account/")
 def process_account(req: AccountProcessRequest):
-    if not BillingManager.is_subscription_active(req.user_id):
+    check_sub = getattr(BillingManager, "is_subscription_active", None)
+    if callable(check_sub) and not check_sub(req.user_id):
         raise HTTPException(status_code=402, detail="Необходима подписка через Kaspi QR")
-    return AI_engine.process_account_code(req.code, req.amount)
+    
+    process_fn = getattr(AI_engine, "process_account_code", None)
+    if callable(process_fn):
+        return process_fn(req.code, req.amount)
+    return {"error": "Processing function not found"}
 
 @app.get("/get_pay_qr/{user_id}")
 def get_pay_qr(user_id: str):
-    return BillingManager.create_kaspi_payment_link(user_id)
+    create_link = getattr(BillingManager, "create_kaspi_payment_link", None)
+    if callable(create_link):
+        return create_link(user_id)
+    return {"url": ""}
 
 @app.post("/kaspi-webhook/")
 def kaspi_webhook(user_id: str, status: str):
-    success = BillingManager.process_kaspi_webhook(user_id, status)
-    if success:
-        return {"status": "ok", "message": "Subscription updated"}
+    webhook_fn = getattr(BillingManager, "process_kaspi_webhook", None)
+    if callable(webhook_fn):
+        success = webhook_fn(user_id, status)
+        if success:
+            return {"status": "ok", "message": "Subscription updated"}
     raise HTTPException(status_code=400, detail="Payment processing failed")
