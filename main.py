@@ -34,7 +34,7 @@ def read_root():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Калькулятор проводок ГУ РК</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 90vh; }}
+            body {{ font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 93vh; }}
             .content {{ flex: 1; }}
             label {{ font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }}
             select, input {{ width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }}
@@ -44,7 +44,7 @@ def read_root():
             th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
             th {{ background-color: #eef4f0; }}
             #result {{ margin-top: 25px; padding: 15px; border-radius: 6px; background-color: #ffffff; border: 1px solid #e0e0e0; }}
-            footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #777; padding: 10px 0; border-top: 1px solid #e0e0e0; }}
+            footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #777; padding: 15px 0 5px 0; border-top: 1px solid #e0e0e0; }}
         </style>
     </head>
     <body>
@@ -132,7 +132,7 @@ def read_root():
                 const generalDesc = data.operation || data.description || data.op_name || '';
 
                 if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {{
-                    html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание хозяйственной операции</th></tr></thead><tbody>';
                     data.entries.forEach(e => {{
                         let desc = e.description || e.desc || e.op || e.operation || e.title || e.comment || e.details || generalDesc || '-';
                         html += `<tr><td>${{e.dt || e.debit || '-'}}</td><td>${{e.kt || e.credit || '-'}}</td><td>${{e.amount || amount}}</td><td>${{desc}}</td></tr>`;
