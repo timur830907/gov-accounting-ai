@@ -6,12 +6,10 @@ import billing
 
 app = FastAPI(title="Gov Accounting AI")
 
-# Пробуем инициализировать класс или использовать сам модуль
-if hasattr(accounting_ai, "AccountingAI"):
-    AI_engine = accounting_ai.AccountingAI()
-else:
-    AI_engine = accounting_ai
+# Инициализируем ваш класс счетов
+AI_engine = accounting_ai.RKStateGovAccountingAI()
 
+# Инициализируем менеджер биллинга
 BillingManager = billing.BillingManager() if hasattr(billing, "BillingManager") else billing
 
 class AccountProcessRequest(BaseModel):
@@ -21,11 +19,9 @@ class AccountProcessRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
-    # Безопасное получение плана счетов
+    # Получаем словарь счетов
     chart = getattr(AI_engine, "chart_of_accounts", {})
-    if callable(chart):
-        chart = chart()
-
+    
     options_html = "".join([
         f'<option value="{code}">{code} - {name}</option>'
         for code, name in chart.items()
@@ -108,10 +104,7 @@ def process_account(req: AccountProcessRequest):
     if callable(check_sub) and not check_sub(req.user_id):
         raise HTTPException(status_code=402, detail="Необходима подписка через Kaspi QR")
     
-    process_fn = getattr(AI_engine, "process_account_code", None)
-    if callable(process_fn):
-        return process_fn(req.code, req.amount)
-    return {"error": "Processing function not found"}
+    return AI_engine.process_account_code(req.code, req.amount)
 
 @app.get("/get_pay_qr/{user_id}")
 def get_pay_qr(user_id: str):
