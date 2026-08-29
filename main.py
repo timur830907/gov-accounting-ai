@@ -26,94 +26,23 @@ def read_root():
         for code, name in chart.items()
     ])
 
-    js_code = """
-    function startDictation() {
-        const micBtn = document.getElementById('micBtn');
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-            alert("Браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ru-RU';
-        micBtn.innerText = '🔴';
-
-        recognition.onresult = function(event) {
-            let transcript = event.results[0][0].transcript;
-            let numbersOnly = transcript.replace(/[^0-9]/g, '');
-            if (numbersOnly) document.getElementById('amount').value = numbersOnly;
-            micBtn.innerText = '🎤';
-        };
-
-        recognition.onerror = function() { micBtn.innerText = '🎤'; };
-        recognition.onend = function() { micBtn.innerText = '🎤'; };
-        recognition.start();
-    }
-
-    async function calculate() {
-        const code = document.getElementById('account_select').value;
-        const amount = parseFloat(document.getElementById('amount').value);
-        const resultDiv = document.getElementById('result');
-
-        if (!amount || amount <= 0) {
-            alert('Пожалуйста, введите корректную сумму');
-            return;
-        }
-
-        resultDiv.innerHTML = '<p>Загрузка и расчет проводок...</p>';
-
-        try {
-            const response = await fetch('/process-account/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code, amount: amount, user_id: 'default_user' })
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                resultDiv.innerHTML = `<div style="color: red; margin-top: 15px;">Ошибка: ${err.detail || 'Не удалось выполнить расчет'}</div>`;
-                return;
-            }
-
-            const data = await response.json();
-            
-            let html = '<h3 style="margin-top:20px;">Результат расчета:</h3>';
-            html += `<p><strong>Наименование:</strong> ${data.name || ''}</p>`;
-
-            if (data.entries && data.entries.length > 0) {
-                html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание</th></tr></thead><tbody>';
-                data.entries.forEach(e => {
-                    html += `<tr><td>${e.dt || ''}</td><td>${e.kt || ''}</td><td>${e.amount || ''}</td><td>${e.description || ''}</td></tr>`;
-                });
-                html += '</tbody></table>';
-            } else {
-                html += '<pre style="background:#eef; padding:10px; border-radius:6px;">' + JSON.stringify(data, null, 2) + '</pre>';
-            }
-
-            resultDiv.innerHTML = html;
-        } catch (err) {
-            resultDiv.innerHTML = '<div style="color: red; margin-top: 15px;">Ошибка соединения с сервером.</div>';
-        }
-    }
-    """
-
-    html_template = """
+    html_content = f"""
     <!DOCTYPE html>
     <html lang="ru">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Калькулятор проводок ГУ РК</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
-            label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
-            select, input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-            .btn { padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
-            .btn-calc { background-color: #27ae60; color: white; margin-top: 20px; width: 100%; font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            th { background-color: #eef4f0; }
+            body {{ font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }}
+            label {{ font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }}
+            select, input {{ width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }}
+            .btn {{ padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }}
+            .btn-calc {{ background-color: #27ae60; color: white; margin-top: 20px; width: 100%; font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }}
+            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+            th {{ background-color: #eef4f0; }}
+            #result {{ margin-top: 25px; padding: 15px; border-radius: 6px; background-color: #ffffff; border: 1px solid #e0e0e0; }}
         </style>
     </head>
     <body>
@@ -121,7 +50,7 @@ def read_root():
         
         <label for="account_select">Выберите счет / субсчет из Плана счетов ГУ РК:</label>
         <select id="account_select">
-            __OPTIONS__
+            {options_html}
         </select>
 
         <label for="amount">Сумма операции (тенге ₸):</label>
@@ -130,19 +59,87 @@ def read_root():
             <button type="button" id="micBtn" onclick="startDictation()" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">🎤</button>
         </div>
 
-        <button class="btn btn-calc" onclick="calculate()">Сформировать проводки</button>
+        <button type="button" class="btn btn-calc" onclick="calculate()">Сформировать проводки</button>
 
-        <div id="result"></div>
+        <div id="result">Здесь появится результат расчета</div>
 
         <script>
-        __JS_CODE__
+        function startDictation() {{
+            const micBtn = document.getElementById('micBtn');
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {{
+                alert("Браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.");
+                return;
+            }}
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            micBtn.innerText = '🔴';
+
+            recognition.onresult = function(event) {{
+                let transcript = event.results[0][0].transcript;
+                let numbersOnly = transcript.replace(/[^0-9]/g, '');
+                if (numbersOnly) document.getElementById('amount').value = numbersOnly;
+                micBtn.innerText = '🎤';
+            }};
+
+            recognition.onerror = function() {{ micBtn.innerText = '🎤'; }};
+            recognition.onend = function() {{ micBtn.innerText = '🎤'; }};
+            recognition.start();
+        }}
+
+        async function calculate() {{
+            const code = document.getElementById('account_select').value;
+            const amountInput = document.getElementById('amount').value;
+            const amount = parseFloat(amountInput);
+            const resultDiv = document.getElementById('result');
+
+            if (!amount || amount <= 0) {{
+                alert('Пожалуйста, введите корректную сумму');
+                return;
+            }}
+
+            resultDiv.innerHTML = '<em>Идет расчет и обработка данных...</em>';
+
+            try {{
+                const response = await fetch('/process-account/', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ code: code, amount: amount, user_id: 'default_user' }})
+                }});
+
+                if (!response.ok) {{
+                    const err = await response.json();
+                    resultDiv.innerHTML = `<div style="color: red;"><strong>Ошибка сервера:</strong> ${{err.detail || 'Не удалось выполнить расчет'}}</div>`;
+                    return;
+                }}
+
+                const data = await response.json();
+                
+                let html = '<h3>Результат расчета:</h3>';
+                if (data.name) html += `<p><strong>Наименование:</strong> ${{data.name}}</p>`;
+
+                if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {{
+                    html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание</th></tr></thead><tbody>';
+                    data.entries.forEach(e => {{
+                        html += `<tr><td>${{e.dt || '-'}}</td><td>${{e.kt || '-'}}</td><td>${{e.amount || '-'}}</td><td>${{e.description || '-'}}</td></tr>`;
+                    }});
+                    html += '</tbody></table>';
+                }} else {{
+                    html += '<pre style="background:#f0f0f0; padding:10px; border-radius:6px; overflow-x:auto;">' + JSON.stringify(data, null, 2) + '</pre>';
+                }}
+
+                resultDiv.innerHTML = html;
+            }} catch (err) {{
+                resultDiv.innerHTML = `<div style="color: red;"><strong>Ошибка JS:</strong> ${{err.message}}</div>`;
+            }}
+        }}
         </script>
     </body>
     </html>
     """
-
-    final_html = html_template.replace("__OPTIONS__", options_html).replace("__JS_CODE__", js_code)
-    return HTMLResponse(content=final_html)
+    return HTMLResponse(content=html_content)
 
 @app.post("/process-account/")
 def process_account(req: AccountProcessRequest):
