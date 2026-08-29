@@ -1,11 +1,112 @@
-<!-- Быстрые кнопки основных средств и амортизации -->
-    <div class="btn-group">
-        <button class="btn" onclick="setQuery('Приобретение земли 5000000')">Земля (2310)</button>
-        <button class="btn" onclick="setQuery('Приобретение здания 12000000')">Здания (2320)</button>
-        <button class="btn" onclick="setQuery('Приобретение сооружения 3000000')">Сооружения (2330)</button>
-        <button class="btn" onclick="setQuery('Приобретение автотранспорта 4500000')">Транспортные средства (2350)</button>
-        <button class="btn" onclick="setQuery('Приобретение оборудования 800000')">Машины и оборудование (2360)</button>
-        <button class="btn" onclick="setQuery('Приобретение инвентаря 250000')">Инвентарь (2370)</button>
-        <button class="btn" onclick="setQuery('Приобретение прочих основных средств 150000')">Прочие ОС (2380)</button>
-        <button class="btn" onclick="setQuery('Начисление амортизации 75000')">Амортизация ОС (7110/2390)</button>
-    </div>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Веб-калькулятор проводок ГУ РК</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        label { font-weight: bold; display: block; margin-top: 15px; }
+        select, input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        
+        .input-group { display: flex; gap: 8px; margin-top: 5px; }
+        .input-group input { flex: 1; margin-top: 0; }
+        .mic-btn { width: auto; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .mic-btn.recording { background: #e74c3c; animation: pulse 1s infinite; }
+        
+        button.submit-btn { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 20px; cursor: pointer; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #f8f9fa; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Веб-калькулятор проводок ГУ РК</h2>
+    
+    <form id="calcForm">
+        <label for="account">Выберите счет / субсчет из Плана счетов ГУ РК:</label>
+        <select id="account" name="account">
+            <option value="1047">1047 — КСН местного бюджета</option>
+        </select>
+
+        <label for="amount">Сумма операции (тенге ₸):</label>
+        <div class="input-group">
+            <input type="number" id="amount" name="amount" placeholder="Введите или скажите сумму" required>
+            <button type="button" class="mic-btn" id="micBtn" onclick="startDictation()" title="Голосовой ввод">🎤</button>
+        </div>
+
+        <button type="submit" class="submit-btn">Сформировать проводки</button>
+    </form>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    document.getElementById('calcForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const account = document.getElementById('account').value;
+        const amount = document.getElementById('amount').value;
+
+        const response = await fetch('/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ account, amount })
+        });
+
+        const data = await response.text();
+        document.getElementById('result').innerHTML = data;
+    });
+
+    function startDictation() {
+        const micBtn = document.getElementById('micBtn');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            alert("Ваш браузер не поддерживает голосовой ввод. Используйте Google Chrome или Microsoft Edge.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.interimResults = false;
+
+        micBtn.classList.add('recording');
+        micBtn.textContent = '🛑';
+
+        recognition.onresult = function(event) {
+            let transcript = event.results[0][0].transcript;
+            let numbersOnly = transcript.replace(/\D/g, '');
+            
+            if (numbersOnly) {
+                document.getElementById('amount').value = numbersOnly;
+            } else {
+                alert("Не удалось извлечь число из фразы: " + transcript);
+            }
+        };
+
+        recognition.onerror = function() {
+            micBtn.classList.remove('recording');
+            micBtn.textContent = '🎤';
+        };
+
+        recognition.onend = function() {
+            micBtn.classList.remove('recording');
+            micBtn.textContent = '🎤';
+        };
+
+        recognition.start();
+    }
+</script>
+
+</body>
+</html>
