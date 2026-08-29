@@ -121,9 +121,11 @@ def read_root():
                 if (data.name) html += `<p><strong>Наименование:</strong> ${{data.name}}</p>`;
 
                 if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {{
-                    html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th>Дебет</th><th>Кредит</th><th>Сумма (₸)</th><th>Описание хозяйственной операции</th></tr></thead><tbody>';
                     data.entries.forEach(e => {{
-                        html += `<tr><td>${{e.dt || '-'}}</td><td>${{e.kt || '-'}}</td><td>${{e.amount || '-'}}</td><td>${{e.description || '-'}}</td></tr>`;
+                        // Проверяем все возможные варианты названия ключа для описания
+                        const desc = e.description || e.desc || e.op || e.title || e.comment || '-';
+                        html += `<tr><td>${{e.dt || '-'}}</td><td>${{e.kt || '-'}}</td><td>${{e.amount || '-'}}</td><td>${{desc}}</td></tr>`;
                     }});
                     html += '</tbody></table>';
                 }} else {{
