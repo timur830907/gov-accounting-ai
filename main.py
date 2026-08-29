@@ -187,7 +187,7 @@ def read_root():
 
             recognition.onresult = function(event) {
                 let transcript = event.results[0][0].transcript;
-                let numbersOnly = transcript.replace(/\D/g, '');
+                let numbersOnly = transcript.replace(/[^0-9]/g, '');
                 if (numbersOnly) document.getElementById('amount').value = numbersOnly;
                 micBtn.innerText = '🎤';
             };
