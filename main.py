@@ -38,13 +38,20 @@ def read_root():
             .content {{ flex: 1; }}
             label {{ font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }}
             select, input {{ width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }}
-            .btn {{ padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }}
-            .btn-calc {{ background-color: #27ae60; color: white; margin-top: 20px; width: 100%; font-weight: bold; }}
+            .btn {{ padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; }}
+            .btn-calc {{ background-color: #27ae60; color: white; margin-top: 20px; width: 100%; }}
+            .btn-kaspi {{ background-color: #f14635; color: white; margin-top: 10px; width: 100%; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }}
             th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
             th {{ background-color: #eef4f0; }}
             #result {{ margin-top: 25px; padding: 15px; border-radius: 6px; background-color: #ffffff; border: 1px solid #e0e0e0; }}
             footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #777; padding: 15px 0 5px 0; border-top: 1px solid #e0e0e0; }}
+            
+            /* Modal Styles */
+            .modal {{ display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }}
+            .modal-content {{ background-color: #fff; margin: 10% auto; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }}
+            .close-btn {{ float: right; font-size: 22px; cursor: pointer; color: #aaa; font-weight: bold; }}
+            .qr-placeholder {{ background: #f9f9f9; padding: 20px; border: 2px dashed #f14635; border-radius: 8px; margin: 15px 0; display: inline-block; width: 80%; }}
         </style>
     </head>
     <body>
@@ -67,11 +74,27 @@ def read_root():
             <div id="result">Здесь появится результат расчета</div>
         </div>
 
+        <!-- Модальное окно подписки Kaspi QR -->
+        <div id="kaspiModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeKaspiModal()">&times;</span>
+                <h3 style="color: #f14635; margin-top:0;">Подписка на 1 месяц</h3>
+                <p style="font-size: 18px; font-weight: bold; margin: 10px 0; color: #2c3e50;">Стоимость: 1$ (~500 ₸)</p>
+                <p style="font-size: 14px; color: #666;">Отсканируйте QR-код через приложение Kaspi.kz для активации доступа на 30 дней:</p>
+                <div class="qr-placeholder" id="qrContainer">
+                    <div id="qrLinkArea"></div>
+                </div>
+                <button class="btn btn-kaspi" onclick="openKaspiPay()">Оплатить 500 ₸ через Kaspi Pay</button>
+            </div>
+        </div>
+
         <footer>
             Разработчик: А.Т.Н., 2026 год
         </footer>
 
         <script>
+        let currentPayUrl = '';
+
         function startDictation() {{
             const micBtn = document.getElementById('micBtn');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -97,6 +120,37 @@ def read_root():
             recognition.start();
         }}
 
+        async function showKaspiQR() {{
+            try {{
+                const res = await fetch('/get_pay_qr/default_user');
+                const data = await res.json();
+                currentPayUrl = data.url || '';
+                
+                const qrLinkArea = document.getElementById('qrLinkArea');
+                if (currentPayUrl) {{
+                    qrLinkArea.innerHTML = `<a href="${{currentPayUrl}}" target="_blank" style="color:#f14635; font-weight:bold; font-size:16px;">Открыть Kaspi Pay (500 ₸)</a>`;
+                }} else {{
+                    qrLinkArea.innerHTML = `<small style="color:#777;">Ссылка оплаты формируется...</small>`;
+                }}
+                
+                document.getElementById('kaspiModal').style.display = 'block';
+            }} catch (e) {{
+                alert('Не удалось получить QR-код для оплаты.');
+            }}
+        }}
+
+        function closeKaspiModal() {{
+            document.getElementById('kaspiModal').style.display = 'none';
+        }}
+
+        function openKaspiPay() {{
+            if (currentPayUrl) {{
+                window.open(currentPayUrl, '_blank');
+            }} else {{
+                alert('Ссылка оплаты Kaspi временно недоступна');
+            }}
+        }}
+
         async function calculate() {{
             const code = document.getElementById('account_select').value;
             const amountInput = document.getElementById('amount').value;
@@ -116,6 +170,12 @@ def read_root():
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ code: code, amount: amount, user_id: 'default_user' }})
                 }});
+
+                if (response.status === 402) {{
+                    resultDiv.innerHTML = `<div style="color: #f14635; padding: 10px;"><strong>Необходима подписка!</strong> Стоимость доступа: 1$ (~500 ₸) в месяц.</div>`;
+                    showKaspiQR();
+                    return;
+                }}
 
                 if (!response.ok) {{
                     const err = await response.json();
@@ -157,7 +217,7 @@ def read_root():
 def process_account(req: AccountProcessRequest):
     check_sub = getattr(BillingManager, "is_subscription_active", None)
     if callable(check_sub) and not check_sub(req.user_id):
-        raise HTTPException(status_code=402, detail="Необходима подписка через Kaspi QR")
+        raise HTTPException(status_code=402, detail="Необходима подписка на 1 месяц (1$ / 500 ₸)")
     
     return AI_engine.process_account_code(req.code, req.amount)
 
@@ -165,8 +225,8 @@ def process_account(req: AccountProcessRequest):
 def get_pay_qr(user_id: str):
     create_link = getattr(BillingManager, "create_kaspi_payment_link", None)
     if callable(create_link):
-        return create_link(user_id)
-    return {"url": ""}
+        return create_link(user_id, amount=500)
+    return {"url": "https://kaspi.kz"}
 
 @app.post("/kaspi-webhook/")
 def kaspi_webhook(user_id: str, status: str):
@@ -174,5 +234,5 @@ def kaspi_webhook(user_id: str, status: str):
     if callable(webhook_fn):
         success = webhook_fn(user_id, status)
         if success:
-            return {"status": "ok", "message": "Subscription updated"}
+            return {"status": "ok", "message": "Subscription updated for 1 month"}
     raise HTTPException(status_code=400, detail="Payment processing failed")
